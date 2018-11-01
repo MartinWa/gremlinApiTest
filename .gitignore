@@ -271,3 +271,4 @@ paket-files/
 __pycache__/
 *.pyc
 /CA.Poc.Web/Properties/launchSettings.json
+/gremlinApiTest/Secrets.cs

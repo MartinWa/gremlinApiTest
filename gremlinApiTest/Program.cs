@@ -10,15 +10,9 @@ namespace gremlinApiTest
 {
     internal class Program
     {
-        private const string Hostname = "ca-nodes.gremlin.cosmosdb.azure.com";
-        private const int Port = 443;
-        private const string AuthKey = "";
-        private const string Database = "Tree";
-        private const string Collection = "957";
-        
         private static void Main()
         {
-            var gremlinServer = new GremlinServer(Hostname, Port, true, "/dbs/" + Database + "/colls/" + Collection, AuthKey);
+            var gremlinServer = new GremlinServer(Secrets.Hostname, Secrets.Port, true, "/dbs/" + Secrets.Database + "/colls/" + Secrets.Collection, Secrets.AuthKey);
             using (var gremlinClient = new GremlinClient(gremlinServer, new GraphSON2Reader(), new GraphSON2Writer(), GremlinClient.GraphSON2MimeType))
             {
                 var query = "g.V()";
