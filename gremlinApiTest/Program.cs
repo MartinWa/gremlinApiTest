@@ -1,25 +1,24 @@
-﻿using Gremlin.Net.Driver;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Gremlin.Net.Driver;
 using Gremlin.Net.Driver.Exceptions;
 using Gremlin.Net.Structure.IO.GraphSON;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-namespace GremlinNetCore
+namespace gremlinApiTest
 {
-    class Program
+    internal class Program
     {
-        private const string hostname = "ca-nodes.gremlin.cosmosdb.azure.com";
-        private const int port = 443;
-        private const string authKey = "SgtwzvydVphjv0twtLb2xe4ovcEZktD40fiV5Zak5P0Azdj9cIJsRMuUO8hYpHjUZJqqdCXRw9J8sXknryWTog==";
-        private const string database = "Tree";
-        private const string collection = "957";
-
-
-        static void Main(string[] args)
+        private const string Hostname = "ca-nodes.gremlin.cosmosdb.azure.com";
+        private const int Port = 443;
+        private const string AuthKey = "";
+        private const string Database = "Tree";
+        private const string Collection = "957";
+        
+        private static void Main()
         {
-            var gremlinServer = new GremlinServer(hostname, port, enableSsl: true, username: "/dbs/" + database + "/colls/" + collection, password: authKey);
+            var gremlinServer = new GremlinServer(Hostname, Port, true, "/dbs/" + Database + "/colls/" + Collection, AuthKey);
             using (var gremlinClient = new GremlinClient(gremlinServer, new GraphSON2Reader(), new GraphSON2Writer(), GremlinClient.GraphSON2MimeType))
             {
                 var query = "g.V()";
@@ -73,7 +72,7 @@ namespace GremlinNetCore
         }
         private static void PrintStatusAttributes(IReadOnlyDictionary<string, object> attributes)
         {
-            Console.WriteLine($"\tStatusAttributes:");
+            Console.WriteLine("\tStatusAttributes:");
             Console.WriteLine($"\t[\"x-ms-status-code\"] : { GetValueAsString(attributes, "x-ms-status-code")}");
             Console.WriteLine($"\t[\"x-ms-total-request-charge\"] : { GetValueAsString(attributes, "x-ms-total-request-charge")}");
         }
@@ -84,12 +83,7 @@ namespace GremlinNetCore
         }
         public static object GetValueOrDefault(IReadOnlyDictionary<string, object> dictionary, string key)
         {
-            if (dictionary.ContainsKey(key))
-            {
-                return dictionary[key];
-            }
-
-            return null;
+            return dictionary.ContainsKey(key) ? dictionary[key] : null;
         }
     }
 }
