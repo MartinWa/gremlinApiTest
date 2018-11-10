@@ -16,43 +16,50 @@ namespace gremlinApiTest
 
         private static async Task Main()
         {
-            // Using https://github.com/evo-terren/Gremlin.Net.CosmosDb until CosmosDB supports bytecode
-            using (var graphClient = new GraphClient(Secrets.Hostname, Secrets.Database, Secrets.Graph, Secrets.AuthKey))
+            try
             {
-                var g = graphClient.CreateTraversalSource();
-
-                // Delete all
-                var deleteQuery = g.V().Drop();
-                await DebugPrintQuery(graphClient, deleteQuery);
-
-                // Create root node
-                var rootNodeQuery = g.AddV("node").Property("root", true).Property("depth", 0);
-                await DebugPrintQuery(graphClient, rootNodeQuery);
-
-                // Create nodes
-                for (var depth = 1; depth < 3; depth++)
+                // Using https://github.com/evo-terren/Gremlin.Net.CosmosDb until CosmosDB supports bytecode
+                using (var graphClient = new GraphClient(Secrets.Hostname, Secrets.Database, Secrets.Graph, Secrets.AuthKey))
                 {
+                    var g = graphClient.CreateTraversalSource();
 
-                    var parentsQuery = g.V().Has("depth", depth - 1);
-                    var parentResults = await DebugPrintQuery(graphClient, parentsQuery);
-                    var id = Convert.ToInt32(Math.Pow(10, depth));
-                    foreach (var parentResult in parentResults)
+                    // Delete all
+                    var deleteQuery = g.V().Drop();
+                    await DebugPrintQuery(graphClient, deleteQuery);
+
+                    // Create root node
+                    var rootNodeQuery = g.AddV("node").Property("root", true).Property("depth", 0);
+                    await DebugPrintQuery(graphClient, rootNodeQuery);
+
+                    // Create nodes
+                    for (var depth = 1; depth <= 1; depth++)
                     {
-                        var parentId = parentResult.Id;
-                        var childrenQuery = g
-                            .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("1")
-                            .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("2")
-                            .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("3")
-                            .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("4")
-                            .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("5")
-                            .AddE("child").From("1").To(parentId)
-                            .AddE("child").From("2").To(parentId)
-                            .AddE("child").From("3").To(parentId)
-                            .AddE("child").From("4").To(parentId)
-                            .AddE("child").From("5").To(parentId);
-                        await DebugPrintQuery(graphClient, childrenQuery);
+
+                        var parentsQuery = g.V().Has("depth", depth - 1);
+                        var parentResults = await DebugPrintQuery(graphClient, parentsQuery);
+                        var id = Convert.ToInt32(Math.Pow(10, depth));
+                        foreach (var parentResult in parentResults)
+                        {
+                            var parentId = parentResult.Id;
+                            var childrenQuery = g
+                                .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("node1")
+                                .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("node2")
+                                .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("node3")
+                                .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("node4")
+                                .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", depth).As("node5")
+                                .AddE("child").From("node1").To(parentId)
+                                .AddE("child").From("node2").To(parentId)
+                                .AddE("child").From("node3").To(parentId)
+                                .AddE("child").From("node4").To(parentId)
+                                .AddE("child").From("node5").To(parentId);
+                            await DebugPrintQuery(graphClient, childrenQuery);
+                        }
                     }
                 }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
             }
             Console.WriteLine($"Total RU cost: {_totalRuCost}");
             Console.ReadLine();
