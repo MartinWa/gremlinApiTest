@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 //using Gremlin.Net.CosmosDb;
@@ -24,22 +25,22 @@ namespace gremlinApiTest
             var graph = new Graph();
             try
             {
-                CreateTestData(5, 5);
+                //CreateTestData(5, 5);
+                var g = graph.Traversal().WithRemote(remoteConnection);
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
 
-                // var g = graph.Traversal().WithRemote(remoteConnection);
+                // Get Root node
+                var root = g.V().Has("root", true);
 
-                // var stopwatch = new Stopwatch();
-                // stopwatch.Start();
-
-                // // Get Root node
-                // var root = g.V().Has("root", true);
-
-                // // Get all children NodeIds
-                // //  var children = root.Repeat().Next();
+                // Get all children NodeIds
+                var allNodes = root.Repeat(__.Out()).Times(2).Values<int>(new[]{"contentId"}).ToList();
+                Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
 
 
-                // stopwatch.Stop();
-                // Console.WriteLine($"Operation took {stopwatch.Elapsed}");
+
+                stopwatch.Stop();
+                Console.WriteLine($"Operation took {stopwatch.Elapsed}");
 
             }
             catch (Exception e)
