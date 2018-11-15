@@ -35,10 +35,10 @@ namespace gremlinApiTest
 
                 // Get all children NodeIds
               //  var allNodes = root.Repeat(__.Out()).Times(2).Path().Values<int>(new[]{"contentId"}).ToList();
-                var allNodes = root.Repeat(__.Out().SimplePath()).Times(4).Path().By("contentId").ToList();
+                var allNodes = root.Repeat(__.Out().SimplePath()).Emit().Values<int>("contentId").ToList();
 
                 Console.WriteLine($"Found {allNodes.Count} nodes:");
-             //   Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
+                Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
             //    Console.WriteLine(string.Join(", ", allNodes));
 
 
