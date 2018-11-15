@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Gremlin.Net.CosmosDb;
@@ -31,10 +32,12 @@ namespace gremlinApiTest
                 var g = graph.Traversal().WithRemote(new DriverRemoteConnection(new GremlinClient(new GremlinServer("localhost", 8182))));
                 Console.WriteLine("Deleting all old vertices");
                 g.V().Drop().Next();
-                var depth = 5; // Given width=5 depth: 2=6v, 3=31v, 4=156, 5=781v, 6=3906v, 7=19531v, 8=97656v, 9=488281v, 10=2441406, 11=12207031v
+                var depth = 10; // Given width=5 depth: 2=6v, 3=31v, 4=156, 5=781v, 6=3906v, 7=19531v, 8=97656v, 9=488281v, 10=2441406, 11=12207031v
                 var width = 5;
-                var totalVertices = (Math.Pow(width, depth)-Math.Pow(width,0))/(width-1); // Geometric series from k=1 to k=depth-1
+                var totalVertices = (Math.Pow(width, depth) - Math.Pow(width, 0)) / (width - 1); // Geometric series from k=1 to k=depth-1
                 Console.WriteLine($"Creating {totalVertices} vertices in a depth of {depth}");
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
                 g.AddV("node").Property("root", true).Property("depth", 0).Next();
                 for (var d = 1; d < depth; d++)
                 {
@@ -42,15 +45,14 @@ namespace gremlinApiTest
                     var id = Convert.ToInt32(Math.Pow(10, d));
                     foreach (var parentResult in parentResults)
                     {
-                        g
-                        .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult)
-                        .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult)
-                        .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult)
-                        .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult)
-                        .AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult)
-                        .Next();
+                        for (var w = 0; w < width; w++)
+                        {
+                            g.AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult).Next();
+                        }
                     }
                 }
+                stopwatch.Stop();
+                Console.WriteLine($"Operation took {stopwatch.Elapsed}");
             }
             catch (Exception e)
             {
