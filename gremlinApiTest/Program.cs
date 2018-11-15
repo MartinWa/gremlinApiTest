@@ -25,7 +25,7 @@ namespace gremlinApiTest
             var graph = new Graph();
             try
             {
-                CreateTestData(5, 5);
+             //  CreateTestData(5, 5);
                 var g = graph.Traversal().WithRemote(remoteConnection);
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
@@ -34,9 +34,12 @@ namespace gremlinApiTest
                 var root = g.V().Has("root", true);
 
                 // Get all children NodeIds
-                var allNodes = root.Repeat(__.Out()).Times(2).Path().Values<int>(new[]{"contentId"}).ToList();
+              //  var allNodes = root.Repeat(__.Out()).Times(2).Path().Values<int>(new[]{"contentId"}).ToList();
+                var allNodes = root.Repeat(__.Out().SimplePath()).Times(4).Path().By("contentId").ToList();
+
                 Console.WriteLine($"Found {allNodes.Count} nodes:");
-         //       Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
+             //   Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
+            //    Console.WriteLine(string.Join(", ", allNodes));
 
 
 
@@ -92,7 +95,7 @@ namespace gremlinApiTest
                             .AddE("parent").From(parent).To("node")
                             .Iterate();
                     }
-                    g.V().Has(T.Id, parent.Id).Properties<int>("depth").Drop();
+                    g.V().Has(T.Id, parent.Id).Properties<int>("depth").Drop().Iterate();
                 }
             }
             stopwatch.Stop();
