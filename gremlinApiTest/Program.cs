@@ -4,20 +4,20 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-//using Gremlin.Net.CosmosDb;
 using Gremlin.Net.Driver;
 using Gremlin.Net.Driver.Exceptions;
 using Gremlin.Net.Driver.Remote;
 using Gremlin.Net.Process.Traversal;
 using Gremlin.Net.Structure;
-
+using Gremlin.Net.Structure.IO.GraphSON;
+using Newtonsoft.Json;
 
 namespace gremlinApiTest
 {
     internal class Program
     {
         //private static double _totalRuCost;
-        private static void Main()
+        private static async Task Main()
         {
             var server = new GremlinServer("localhost", 8182);
             var client = new GremlinClient(server);
@@ -25,26 +25,29 @@ namespace gremlinApiTest
             var graph = new Graph();
             try
             {
-             //  CreateTestData(5, 5);
-                var g = graph.Traversal().WithRemote(remoteConnection);
-                var stopwatch = new Stopwatch();
-                stopwatch.Start();
+                // Given width=5 depth: 2=6v, 3=31v, 4=156, 5=781v, 6=3906v, 7=19531v, 8=97656v, 9=488281v, 10=2441406, 11=12207031v
+                //await CreateTestDataCosmosDbAsync(8, 5);
+                
+                //  CreateTestData(5, 5);
+                // var g = graph.Traversal().WithRemote(remoteConnection);
+                // var stopwatch = new Stopwatch();
+                // stopwatch.Start();
 
-                // Get Root node
-                var root = g.V().Has("root", true);
+                // // Get Root node
+                // var root = g.V().Has("root", true);
 
-                // Get all children NodeIds
-              //  var allNodes = root.Repeat(__.Out()).Times(2).Path().Values<int>(new[]{"contentId"}).ToList();
-                var allNodes = root.Repeat(__.Out().SimplePath()).Emit().Values<int>("contentId").ToList();
+                // // Get all children NodeIds
+                // var allNodes = root.Repeat(__.Out().SimplePath()).Emit().Values<int>("contentId").ToList();
 
-                Console.WriteLine($"Found {allNodes.Count} nodes:");
-                Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
-            //    Console.WriteLine(string.Join(", ", allNodes));
+                // Console.WriteLine($"Found {allNodes.Count} nodes:");
+                // Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
 
 
 
-                stopwatch.Stop();
-                Console.WriteLine($"Operation took {stopwatch.Elapsed}");
+                // // Get path of all nodes
+                // //  var allNodes = root.Repeat(__.Out()).Path().Values<int>(new[]{"contentId"}).ToList();
+                // stopwatch.Stop();
+                // Console.WriteLine($"Operation took {stopwatch.Elapsed}");
 
             }
             catch (Exception e)
@@ -55,9 +58,92 @@ namespace gremlinApiTest
             client.Dispose();
         }
 
+
+        private static async Task CreateTestDataCosmosDbAsync(int depth, int width)
+        {
+            var gremlinServer = new GremlinServer(Secrets.Hostname, 443, true, $"/dbs/{Secrets.Database}/colls/{Secrets.Graph}", Secrets.AuthKey);
+            using (var gremlinClient = new GremlinClient(gremlinServer, new GraphSON2Reader(), new GraphSON2Writer(), GremlinClient.GraphSON2MimeType))
+            {
+                Console.WriteLine("Deleting all old vertices");
+                await SubmitCosmosDbRequest(gremlinClient, "g.V().drop()");
+                var totalVertices = (Math.Pow(width, depth) - Math.Pow(width, 0)) / (width - 1); // Geometric series from k=1 to k=depth-1
+                Console.WriteLine($"Will create {totalVertices} vertices with a width of {width} and a depth of {depth}");
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
+                await SubmitCosmosDbRequest(gremlinClient, "g.addV('node').property('contentId', 1).property('root', true).property('depth', 1)");
+                for (var d = 2; d <= depth; d++)
+                {
+                    var parents = await SubmitCosmosDbRequest(gremlinClient, $"g.V().Has('depth', {d - 1})");
+                    var id = Convert.ToInt32(Math.Pow(10, d - 1));
+                    Console.WriteLine($"Creating depth {d} starting id on {id}");
+                    foreach (var parent in parents)
+                    {
+                        var query = $"g.V('{parent["id"]}').as('parent')";
+                        for (var w = 0; w < width; w++)
+                        {
+                            query += $".addV('node').property('contentId', {id++}).property('Ugam', 3L).property('depth', {d}).as('node{id}')" +
+                                      $".addE('child').from('node{id}').to('parent').addE('parent').from('parent').to('node{id}')";
+                        }
+                        await SubmitCosmosDbRequest(gremlinClient, query);
+                        await SubmitCosmosDbRequest(gremlinClient, $"g.V('{parent["id"]}').properties('depth').drop()");
+                    }
+                }
+                stopwatch.Stop();
+                Console.WriteLine($"Operation took {stopwatch.Elapsed}");
+            }
+        }
+
+        private static Task<ResultSet<dynamic>> SubmitCosmosDbRequest(GremlinClient gremlinClient, string query)
+        {
+            try
+            {
+                return gremlinClient.SubmitAsync<dynamic>(query);
+            }
+            catch (ResponseException e)
+            {
+                Console.WriteLine("\tRequest Error!");
+
+                // Print the Gremlin status code.
+                Console.WriteLine($"\tStatusCode: {e.StatusCode}");
+
+                // On error, ResponseException.StatusAttributes will include the common StatusAttributes for successful requests, as well as
+                // additional attributes for retry handling and diagnostics.
+                // These include:
+                //  x-ms-retry-after-ms         : The number of milliseconds to wait to retry the operation after an initial operation was throttled. This will be populated when
+                //                              : attribute 'x-ms-status-code' returns 429.
+                //  x-ms-activity-id            : Represents a unique identifier for the operation. Commonly used for troubleshooting purposes.
+                PrintStatusAttributes(e.StatusAttributes);
+                Console.WriteLine($"\t[\"x-ms-retry-after-ms\"] : { GetValueAsString(e.StatusAttributes, "x-ms-retry-after-ms")}");
+                Console.WriteLine($"\t[\"x-ms-activity-id\"] : { GetValueAsString(e.StatusAttributes, "x-ms-activity-id")}");
+                throw;
+            }
+        }
+
+        private static void PrintStatusAttributes(IReadOnlyDictionary<string, object> attributes)
+        {
+            Console.WriteLine($"\tStatusAttributes:");
+            Console.WriteLine($"\t[\"x-ms-status-code\"] : { GetValueAsString(attributes, "x-ms-status-code")}");
+            Console.WriteLine($"\t[\"x-ms-total-request-charge\"] : { GetValueAsString(attributes, "x-ms-total-request-charge")}");
+        }
+
+        public static string GetValueAsString(IReadOnlyDictionary<string, object> dictionary, string key)
+        {
+            return JsonConvert.SerializeObject(GetValueOrDefault(dictionary, key));
+        }
+
+        public static object GetValueOrDefault(IReadOnlyDictionary<string, object> dictionary, string key)
+        {
+            if (dictionary.ContainsKey(key))
+            {
+                return dictionary[key];
+            }
+
+            return null;
+        }
+
+
         private static void CreateTestData(int depth, int width)
         {
-            // Given width=5 depth: 2=6v, 3=31v, 4=156, 5=781v, 6=3906v, 7=19531v, 8=97656v, 9=488281v, 10=2441406, 11=12207031v
             var server = new GremlinServer("localhost", 8182);
             var client = new GremlinClient(server);
             var remoteConnection = new DriverRemoteConnection(client);
