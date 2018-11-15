@@ -25,7 +25,7 @@ namespace gremlinApiTest
             var graph = new Graph();
             try
             {
-                //CreateTestData(5, 5);
+                CreateTestData(5, 5);
                 var g = graph.Traversal().WithRemote(remoteConnection);
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
@@ -34,8 +34,9 @@ namespace gremlinApiTest
                 var root = g.V().Has("root", true);
 
                 // Get all children NodeIds
-                var allNodes = root.Repeat(__.Out()).Times(2).Values<int>(new[]{"contentId"}).ToList();
-                Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
+                var allNodes = root.Repeat(__.Out()).Times(2).Path().Values<int>(new[]{"contentId"}).ToList();
+                Console.WriteLine($"Found {allNodes.Count} nodes:");
+         //       Console.WriteLine(string.Join(", ", allNodes.OrderBy(c => c)));
 
 
 
@@ -66,7 +67,11 @@ namespace gremlinApiTest
             Console.WriteLine($"Will create {totalVertices} vertices with a width of {width} and a depth of {depth}");
             var stopwatch = new Stopwatch();
             stopwatch.Start();
-            g.AddV("node").Property("root", true).Property("depth", 1).Iterate();
+            g.AddV("node")
+                .Property("contentId", 1)
+                .Property("root", true)
+                .Property("depth", 1)
+                .Iterate();
             for (var d = 2; d <= depth; d++)
             {
                 var parents = g.V().Has("depth", d - 1).ToList();
@@ -87,6 +92,7 @@ namespace gremlinApiTest
                             .AddE("parent").From(parent).To("node")
                             .Iterate();
                     }
+                    g.V().Has(T.Id, parent.Id).Properties<int>("depth").Drop();
                 }
             }
             stopwatch.Stop();
