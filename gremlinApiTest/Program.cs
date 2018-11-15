@@ -18,16 +18,36 @@ namespace gremlinApiTest
         //private static double _totalRuCost;
         private static void Main()
         {
+            var server = new GremlinServer("localhost", 8182);
+            var client = new GremlinClient(server);
+            var remoteConnection = new DriverRemoteConnection(client);
+            var graph = new Graph();
             try
             {
-                CreateTestData(8, 5);
+                CreateTestData(5, 5);
+
+                // var g = graph.Traversal().WithRemote(remoteConnection);
+
+                // var stopwatch = new Stopwatch();
+                // stopwatch.Start();
+
+                // // Get Root node
+                // var root = g.V().Has("root", true);
+
+                // // Get all children NodeIds
+                // //  var children = root.Repeat().Next();
+
+
+                // stopwatch.Stop();
+                // Console.WriteLine($"Operation took {stopwatch.Elapsed}");
+
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
             }
-            //Console.WriteLine($"Total RU cost: {_totalRuCost}");
-            //Console.ReadLine();
+            remoteConnection.Dispose();
+            client.Dispose();
         }
 
         private static void CreateTestData(int depth, int width)
@@ -37,8 +57,8 @@ namespace gremlinApiTest
             var client = new GremlinClient(server);
             var remoteConnection = new DriverRemoteConnection(client);
             var graph = new Graph();
-
             var g = graph.Traversal().WithRemote(remoteConnection);
+
             Console.WriteLine("Deleting all old vertices");
             g.V().Drop().Iterate();
             var totalVertices = (Math.Pow(width, depth) - Math.Pow(width, 0)) / (width - 1); // Geometric series from k=1 to k=depth-1
@@ -48,14 +68,23 @@ namespace gremlinApiTest
             g.AddV("node").Property("root", true).Property("depth", 1).Iterate();
             for (var d = 2; d <= depth; d++)
             {
-                var parentResults = g.V().Has("depth", d-1).ToList();
-                var id = Convert.ToInt32(Math.Pow(10, d-1));
-                Console.WriteLine($"Creating depth {d} starting nodeId on {id}");
-                foreach (var parentResult in parentResults)
+                var parents = g.V().Has("depth", d - 1).ToList();
+                var id = Convert.ToInt32(Math.Pow(10, d - 1));
+                Console.WriteLine($"Creating depth {d} starting id on {id}");
+                foreach (var parent in parents)
                 {
                     for (var w = 0; w < width; w++)
                     {
-                        g.AddV("node").Property("nodeId", id++).Property("Ugam", 3L).Property("depth", d).AddE("child").To(parentResult).Iterate();
+                        g
+                            .AddV("node")
+                                //.Property("nodeId", id++)
+                                .Property("contentId", id++)
+                                .Property("Ugam", 3L)
+                                .Property("depth", d)
+                                .As("node")
+                            .AddE("child").From("node").To(parent)
+                            .AddE("parent").From(parent).To("node")
+                            .Iterate();
                     }
                 }
             }
